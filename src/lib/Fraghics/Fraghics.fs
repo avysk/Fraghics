@@ -12,8 +12,15 @@ type G private () =
     | None -> orElse
     | Some value -> value
 
+  // form is backed by Bitmap, called formStore; formGraphics is the
+  // corresponding Graphics. There is also backingStore and backGraphics.
+  // 'autosynchonize' being true means that changes to backingStore are
+  // immediately propagated to formStore; otherwise the changes from
+  // backingStore will be drawn on Synchronize() call
   static let mutable form : Form = null
-  static let mutable backingStore : Bitmap = null
+  static let mutable formStore : Bitmap = null
+  static let mutable formGraphics : Graphics = null
+  static let mutable backStore : Bitmap = null
   static let mutable backGraphics : Graphics = null
   static let mutable autosynchronize = true
   static let mutable background =
@@ -24,43 +31,62 @@ type G private () =
   static let mutable curx : int32 = 0
   static let mutable cury : int32 = 0
 
-  static let newStore () =
+  static let createStoreAndGraphics w h (format: Imaging.PixelFormat) =
+    let store = new Bitmap(w, h, format)
+    let graphics = Graphics.FromImage(store)
+    // TODO: graphics quality
+    graphics.PixelOffsetMode = Drawing2D.PixelOffsetMode.HighQuality
+      |> ignore
+    graphics.Clear(background.Color)
+    store, graphics
+
+  static let newStores () =
     let rect = form.ClientRectangle
     let w = rect.Width
     let h = rect.Height
     let format = Imaging.PixelFormat.Format24bppRgb
-    let newStore = new Bitmap(w, h, format)
-    backGraphics <- Graphics.FromImage(newStore)
-    // TODO: graphics quality
-    backGraphics.PixelOffsetMode = Drawing2D.PixelOffsetMode.HighQuality
-      |> ignore
-    backGraphics.Clear(background.Color)
+
+    let fStore, fGraphics = createStoreAndGraphics w h format
+    formGraphics <- fGraphics
     // Now let's copy old stuff on top of this one
     // If we just created a Window it may not exist, so check
-    match backingStore with
+    match formStore with
     | null -> ()
     | _ ->
-      backGraphics.DrawImageUnscaled(backingStore, 0, 0)
+      formGraphics.DrawImageUnscaled(formStore, 0, 0)
       // TODO: is it useful
-      backingStore.Dispose()
-    backingStore <- newStore
+      formStore.Dispose()
+    formStore <- fStore
+
+    let bStore, bGraphics = createStoreAndGraphics w h format
+    backGraphics <- bGraphics
+    // Copying old stuff again, see above
+    match backStore with
+    | null -> ()
+    | _ ->
+      backGraphics.DrawImageUnscaled(backStore, 0, 0)
+      // TODO: is it useful
+      backStore.Dispose()
+    backStore <- bStore
 
   static let paint (evt : PaintEventArgs) =
     let rect = evt.ClipRectangle
-    evt.Graphics.DrawImage(backingStore, rect, rect, GraphicsUnit.Pixel)
+    evt.Graphics.DrawImage(formStore, rect, rect, GraphicsUnit.Pixel)
     ()
 
   static let resize _ =
-    newStore()
+    newStores()
     form.Invalidate()
     Application.DoEvents()
 
   static member private Execute (draw: Graphics -> unit) =
     draw backGraphics
-    if autosynchronize then form.Invalidate()
-    Application.DoEvents()
+    if autosynchronize then
+      draw formGraphics
+      G.Synchronize()
 
   static member Synchronize () =
+    formGraphics.DrawImageUnscaled(backStore, 0, 0)
     form.Invalidate()
     Application.DoEvents()
 
@@ -78,9 +104,7 @@ type G private () =
     let w = width <?> size.Width
     let h = height <?> size.Height
     form.ClientSize <- Size(w, h)
-    // Now create a backing store
-    newStore()
-    // Tie those two together
+    newStores()
     form.Paint.Add(paint)
     form.Resize.Add(resize)
 
@@ -88,7 +112,8 @@ type G private () =
     // TODO check if it was open
     form.Close()
     // TODO is it useful?
-    backingStore.Dispose()
+    formStore.Dispose()
+    backStore.Dispose()
     Application.Exit()
 
   static member SetWindowTitle title =
@@ -166,7 +191,7 @@ type G private () =
 
 
   // TODO think about color representations
-  static member PointColor x y = backingStore.GetPixel(x, y)
+  static member PointColor x y = formStore.GetPixel(x, y)
 
   static member MoveTo x y =
     curx <- x
@@ -183,6 +208,7 @@ type G private () =
   static member Autosynchronize
     with set(value) =
       autosynchronize <- value
+      if value then G.Synchronize()
 
   static member Run() = Application.Run()
 
