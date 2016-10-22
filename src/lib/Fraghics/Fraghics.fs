@@ -47,9 +47,13 @@ type G private () =
     let format = Imaging.PixelFormat.Format24bppRgb
 
     let fStore, fGraphics = createStoreAndGraphics w h format
-    formGraphics <- fGraphics
+    // TODO: is it useful
     // Now let's copy old stuff on top of this one
-    // If we just created a Window it may not exist, so check
+    // If we just created a window it may not exist, so check
+    match formGraphics with
+    | null -> ()
+    | _ -> formGraphics.Dispose()
+    formGraphics <- fGraphics
     match formStore with
     | null -> ()
     | _ ->
@@ -59,8 +63,13 @@ type G private () =
     formStore <- fStore
 
     let bStore, bGraphics = createStoreAndGraphics w h format
+    // TODO: is it useful
+    match backGraphics with
+    | null -> ()
+    | _ -> backGraphics.Dispose()
     backGraphics <- bGraphics
-    // Copying old stuff again, see above
+    // Now let's copy old stuff on top of this one
+    // If we just created a window it may not exist, so check
     match backStore with
     | null -> ()
     | _ ->
