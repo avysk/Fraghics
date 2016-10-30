@@ -156,7 +156,8 @@ build_test: code_ok
 	@$(FAKE) BuildTest
 
 docs:
-	@rm -f docs
+	@rm -rf .fake # horrible bug workaround
+	@rm -rf docs
 	@mkdir docs
 	@$(FAKE) Docs
 
