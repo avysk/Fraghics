@@ -1,8 +1,10 @@
+/// Foo-bar
 namespace Fraghics
 
 open System.Drawing
 open System.Windows.Forms
 
+/// Important exception
 exception InvalidArgumentException
 
 type G private () =

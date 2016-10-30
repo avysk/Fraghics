@@ -155,9 +155,13 @@ code_ok:
 build_test: code_ok
 	@$(FAKE) BuildTest
 
+docs:
+	@rm -f docs
+	@mkdir docs
+	@$(FAKE) Docs
 
-.PHONY: build clean code_ok create create_app create_lib create_test init
-.PHONY: init_forge init_paket no_src paket_restore release
+.PHONY: build clean code_ok create create_app create_lib create_test docs
+.PHONY: init init_forge init_paket no_src paket_restore release
 .PHONY: run scorched_earth test
 
 # License is for this file only!

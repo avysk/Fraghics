@@ -3,13 +3,28 @@
 #r "packages/FSharpLint.Fake/tools/FSharpLint.Core.dll"
 #r "packages/FSharpLint.Fake/tools/FSharpLint.Fake.dll"
 
+#load "packages/FSharp.Formatting/FSharp.Formatting.fsx"
+
+
 open Fake
 open Fake.Testing
 
+open FSharp.MetadataFormat
 open FSharpLint.Fake
+
+open System.IO
+
 
 let buildDir = "build/"
 let testDir = "test/"
+let libSrcRoot = "src/lib/Fraghics/"
+
+let info =  ["root", "file://"
+             "project-name", "Fraghics"
+             "project-author", "Alexey Vyskubov"
+             "project-github", "https://github.com/avysk/Fraghics"
+             "project-nuget", "https://nuget.org/packages/Fraghics"]
+
 
 let buildRefs =
   !! "/src/lib/**/*.fsproj"
@@ -29,18 +44,19 @@ Target "Lint" (fun _ ->
   allRefs |> Seq.iter (FSharpLint (fun options ->
                                    {options with FailBuildIfAnyWarnings=true}))
 )
+"Clean" ==> "Lint"
 
 Target "BuildApp" (fun _ ->
   MSBuildDebug buildDir "Build" buildRefs
   |> Log "Build output: "
 )
-"Clean" ==> "Lint" ==> "BuildApp"
+"Lint" ==> "BuildApp"
 
 Target "ReleaseApp" (fun _ ->
   MSBuildRelease buildDir "Build" buildRefs
   |> Log "Release build output: "
 )
-"Clean" ==> "Lint" ==> "ReleaseApp"
+"Lint" ==> "ReleaseApp"
 
 Target "BuildTest" (fun _ ->
   MSBuildDebug testDir "Build" testRefs
@@ -55,10 +71,20 @@ Target "Test" (fun _ ->
 )
 "BuildTest" ==> "Test"
 
+Target "Docs" (fun _ ->
+  MetadataFormat.Generate
+    (Path.Combine("build/", "Fraghics.dll"),
+     "docs",
+     [Path.Combine(libSrcRoot, "../../../packages/FSharp.Formatting/templates")
+      Path.Combine(libSrcRoot, "../../../packages/FSharp.Formatting/templates/reference")],
+     xmlFile=("src/lib/Fraghics/bin/Debug/Fraghics.XML"),
+     parameters=info,
+     sourceRepo="http://github.com/avysk/Fraghics/tree/master",
+     sourceFolder="."))
+"BuildApp" ==> "Docs"
+
 
 RunTargetOrDefault "BuildApp"
-
-// vim: sw=2:sts=2:ai:foldmethod=indent:colorcolumn=80
 
 // License is for this file only!
 //
@@ -85,3 +111,5 @@ RunTargetOrDefault "BuildApp"
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
+
+// vim: sw=2:sts=2:ai:foldmethod=indent:colorcolumn=80

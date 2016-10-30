@@ -5,6 +5,7 @@
 packages/
 
 build/
+docs/
 test/
 src/**/bin/
 src/**/obj/
